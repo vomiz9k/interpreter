@@ -1,5 +1,5 @@
 %skeleton "lalr1.cc"
-%require "3.5"
+%require "3.7"
 
 %defines
 %define api.token.constructor
@@ -21,10 +21,11 @@
 
     #include "driver.hpp"
 
-    /* Redefine parser to use our function from scanner */
     static yy::parser::symbol_type yylex(Lexer &lexer) {
         return lexer.ScanToken();
     }
+
+    #define SYNTAX_ERROR( str ) yy::parser::syntax_error(str)
 }
 
 
@@ -34,7 +35,11 @@
 %parse-param { Lexer& lexer }
 %parse-param { Driver &driver }
 
+
+
+
 %token
+    END 0 "end of file"
     ASSIGN "="
     MINUS "-"
     PLUS "+"
@@ -46,9 +51,9 @@
     RBRACKET ")"
     PSVM "public static void main"
     CLASS "class"
-    MAIN "Main"
     INT "int"
     BOOL "bool"
+    VOID "void"
     LFBRACKET "{"
     RFBRACKET "}"
     IF "if"
@@ -61,97 +66,142 @@
     SMALLER "<"
 ;
 
-%token <std::string> IDENTIFIER "id"
-%token <int> NUMBER "num"
+%token <std::string> identifier "id"
+%token <int> number "num"
 %nterm <int> expr
+%nterm <std::string> type
 
 
 %%
+%left ";";
 %left "+" "-";
 %left "*" "/" "%";
+%left "(";
+%left "[";
+%left ".";
+%left "!";
+%left "||";
+%left "&&";
+%left ">" "<" "==";
+%left "=";
+
+%nonassoc "then";
+%nonassoc "else";
 
 %start program;
 
-program: main_class   {};
+program: 
+    main_class class_declarations {};
 
-main_class: "class" "Main" "{" "public static void main" "(" ")" "{" global_body "}" "}"  {};
+main_class: 
+    "class" identifier "{" "public" "static" "void" "main" "(" ")" "{" statements "}" "}" {};
 
-global_body:   
-    %empty {} 
-    | global_statement global_body {};
+class_declarations: 
+    class_declaration class_declarations {}
+    | %empty {};
 
-global_statement: 
-    variable_declaration {}
-    | variable_assignment {}
-    | "if" "(" expr ")" "{" local_body "}" {}
-    | "if" "(" expr ")" "{" local_body "}" "else" "{" local_body "}" {}
-    | "while" "(" expr ")" "{" local_body "}" {}
-    | "System.out.println" "(" expr ")" ";" {std::cout << $3 ;};
+class_declaration:  
+    "class" identifier "extends" identifier "{" declarations "}" {}
+    | "class" identifier "{" declarations "}" {};
+
+declarations: 
+    variable_declaration declarations {}
+    | method_declaration declarations {}
+    | %empty {};
+
+method_declaration:
+    "public" type identifier "(" method_args ")" "{" statements "}" {};
 
 variable_declaration:
-    type "id" ";" {
-        driver.variables[$2] = 0;
-    };
+    type identifier ";" {};
 
-type:  "int" {};
+method_args:
+    %empty {} 
+    | method_arg method_multiple_arg {};
 
-variable_assignment:
-    "id" "=" expr ";" {
-        if(driver.variables.count($1))
-        {
-            driver.variables[$1] = $3;
-        }
-        else
-        {
-            std::cout << "SE";
-        }
-    
-    };
+method_arg:
+    type identifier {};
 
-local_body:
+method_multiple_arg:
+    "," method_arg method_multiple_arg{}
+    | %empty {};
+
+type:
+    simple_type {}
+    | simple_type "[" "]" {};
+
+simple_type:
+    "int" {}
+    | "bool" {}
+    | "void" {}
+    | identifier {};
+
+statements:   
+    %empty {} 
+    | statement statements {};
+
+not_if_statement:
+    "assert" "(" expr ")" {}
+    | variable_declaration {}
+    | "{" statements "}" {}
+    | "while" "(" expr ")" statement {}
+    | "System.out.println" "(" expr ")" ";" {}
+    | assignment ";" {}
+    | "return" expr ";" {}
+    | method_invocation ";" {};
+
+
+statement:
+    "if" "(" expr ")" statement "else" statement {}
+    | "if" "(" expr ")" statement %prec "then" {}
+    | not_if_statement {};
+
+
+assignment:
+    expr "=" expr {};
+
+method_invocation:
+    expr "." identifier "(" expressions ")" {};
+
+expressions:
     %empty {}
-    | local_statement local_body {};
+    | expr multiple_expressions {};
 
-local_statement: 
-    variable_assignment {}
-    | "System.out.println" "(" expr ")" ";" {std::cout << $3 ;};
+multiple_expressions:
+    %empty {}
+    | "," expr multiple_expressions {};
+
+
 
 expr: 
-    "num" {
-        $$ = $1;
-    }
-    | "id" {
-        if(driver.variables.count($1))
-        {
-            $$ = driver.variables[$1];
-        }
-        else
-        {
-            std::cout << "SE";
-        }
-    }
-    | expr "+" expr { 
-        $$ = $1 + $3;
-    }
-    | expr "-" expr { 
-        $$ = $1 - $3;
-    }
-    | expr "*" expr { 
-        $$ = $1 * $3;
-    }
-    | expr "/" expr { 
-        $$ = $1 / $3;
-    }
-    | expr "%" expr { 
-        $$ = $1 % $3;
-    }
-    | "(" expr ")" { 
-        $$ = $2;
-    };
+    number {}
+    | identifier {}
+    | expr "[" expr "]" {}
+    | expr "." "length" {}
+    | "new" simple_type "[" expr "]" {}
+    | "new" identifier "(" ")" {}
+    | "!" expr {}
+    | "this" {}
+    | "true" {}
+    | "false" {}
+    | method_invocation {}
+    | expr "+" expr {}
+    | expr "-" expr {}
+    | expr "*" expr {}
+    | expr "/" expr {}
+    | expr "%" expr {}
+    | expr "&&" expr {}
+    | expr "||" expr {}
+    | expr "<" expr {}
+    | expr ">" expr {}
+    | expr "==" expr {}
+    | "(" expr ")" {};
 
 %%
 
-void yy::parser::error(const std::string& m)
+void yy::parser::error(const std::string& str)
 {
-  std::cerr << 1 << ": " << m << '\n';
+    std::cerr << "Syntax Error: " << str << '\n';
 }
+
+
