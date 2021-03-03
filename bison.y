@@ -73,7 +73,7 @@
 
 
 %%
-%left ";";
+
 %left "+" "-";
 %left "*" "/" "%";
 %left "(";
@@ -84,6 +84,7 @@
 %left "&&";
 %left ">" "<" "==";
 %left "=";
+%left ";";
 
 %nonassoc "then";
 %nonassoc "else";
@@ -97,7 +98,7 @@ main_class:
     "class" identifier "{" "public" "static" "void" "main" "(" ")" "{" statements "}" "}" {};
 
 class_declarations: 
-    class_declaration class_declarations {}
+    class_declarations class_declaration  {}
     | %empty {};
 
 class_declaration:  
@@ -105,8 +106,8 @@ class_declaration:
     | "class" identifier "{" declarations "}" {};
 
 declarations: 
-    variable_declaration declarations {}
-    | method_declaration declarations {}
+    declarations variable_declaration  {}
+    | declarations method_declaration  {}
     | %empty {};
 
 method_declaration:
@@ -117,14 +118,15 @@ variable_declaration:
 
 method_args:
     %empty {} 
-    | method_arg method_multiple_arg {};
+    | method_arg {}
+    | method_arg "," method_multiple_arg {};
 
 method_arg:
     type identifier {};
 
 method_multiple_arg:
-    "," method_arg method_multiple_arg{}
-    | %empty {};
+    method_arg {}
+    | method_multiple_arg "," method_arg{};
 
 type:
     simple_type {}
@@ -138,10 +140,13 @@ simple_type:
 
 statements:   
     %empty {} 
-    | statement statements {};
+    | statements statement  {};
 
-not_if_statement:
-    "assert" "(" expr ")" {}
+
+statement:
+    "if" "(" expr ")" statement "else" statement {}
+    | "if" "(" expr ")" statement %prec "then" {}
+    | "assert" "(" expr ")" {}
     | variable_declaration {}
     | "{" statements "}" {}
     | "while" "(" expr ")" statement {}
@@ -151,33 +156,30 @@ not_if_statement:
     | method_invocation ";" {};
 
 
-statement:
-    "if" "(" expr ")" statement "else" statement {}
-    | "if" "(" expr ")" statement %prec "then" {}
-    | not_if_statement {};
-
-
 assignment:
     expr "=" expr {};
 
 method_invocation:
     expr "." identifier "(" expressions ")" {};
 
+field_invocation:
+    expr "." expr {};
+
 expressions:
     %empty {}
-    | expr multiple_expressions {};
+    | expr {}
+    | expr "," multiple_expressions {};
 
 multiple_expressions:
-    %empty {}
-    | "," expr multiple_expressions {};
-
-
+    expr  {}
+    | multiple_expressions "," expr  {};
 
 expr: 
     number {}
     | identifier {}
     | expr "[" expr "]" {}
     | expr "." "length" {}
+    | field_invocation {}
     | "new" simple_type "[" expr "]" {}
     | "new" identifier "(" ")" {}
     | "!" expr {}
