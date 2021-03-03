@@ -40,36 +40,74 @@
 
 %token
     END 0 "end of file"
+
     ASSIGN "="
     MINUS "-"
     PLUS "+"
     STAR "*"
     SLASH "/"
     PERCENT "%"
+
     SEMICOLON ";"
+
     LBRACKET "("
     RBRACKET ")"
-    PSVM "public static void main"
-    CLASS "class"
-    INT "int"
-    BOOL "bool"
-    VOID "void"
-    LFBRACKET "{"
+    LFBRACKET "{" //Figure
     RFBRACKET "}"
-    IF "if"
-    ELSE "else"
-    WHILE "while"
-    SOP "System.out.println"
+    LSBRACKET "[" //Square
+    RSBRACKET "]"
+    ARRAY_DECL_BRACKETS "[]"
+
+    POINT "."
+    COMMA ","
+
     EQUAL "=="
     NOT_EQUAL "!="
     BIGGER ">"
     SMALLER "<"
+
+    LOGIC_AND "&&"
+    LOGIC_OR "||"
+
+    CLASS "class"
+    PUBLIC "public"
+    STATIC "static"
+    VOID  "void" 
+    MAIN "main"
+    EXTENDS "extends"
+
+    INT "int"
+    BOOL "bool"
+
+    ASSERT "assert"
+    RETURN "return"
+    IF "if"
+    ELSE "else"
+    WHILE "while"
+    SOP "System.out.println"
 ;
 
-%token <std::string> identifier "id"
-%token <int> number "num"
-%nterm <int> expr
-%nterm <std::string> type
+%nterm program
+%nterm main_class
+%nterm class_declarations
+%nterm class_declaration
+%nterm declarations
+%nterm method_declaration
+%nterm variable_declaration
+%nterm method_args
+%nterm method_multiple_arg
+%nterm method_arg
+%nterm type
+%nterm simple_type
+%nterm statements
+%nterm statement
+%nterm assignment
+%nterm expressions
+%nterm multiple_expressions
+
+%token identifier 
+%token number 
+%nterm expr
 
 
 %%
@@ -130,7 +168,7 @@ method_multiple_arg:
 
 type:
     simple_type {}
-    | simple_type "[" "]" {};
+    | simple_type "[]" {};
 
 simple_type:
     "int" {}
@@ -163,7 +201,7 @@ method_invocation:
     expr "." identifier "(" expressions ")" {};
 
 field_invocation:
-    expr "." expr {};
+    "this" "." identifier {};
 
 expressions:
     %empty {}
@@ -177,7 +215,7 @@ multiple_expressions:
 expr: 
     number {}
     | identifier {}
-    | expr "[" expr "]" {}
+    | array_element {}
     | expr "." "length" {}
     | field_invocation {}
     | "new" simple_type "[" expr "]" {}
@@ -198,6 +236,9 @@ expr:
     | expr ">" expr {}
     | expr "==" expr {}
     | "(" expr ")" {};
+
+array_element:
+    identifier "[" expr "]"
 
 %%
 
