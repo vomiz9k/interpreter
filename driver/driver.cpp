@@ -1,4 +1,4 @@
-#include "driver.hpp"
+#include <driver.hpp>
 
 Driver::Driver() : lexer(*this), bison(lexer, *this) {}
 

@@ -3,8 +3,9 @@
 #include <map>
 #include <fstream>
 
-#include "lexer.hpp"
-#include "bison.hpp"
+#include <bison.hpp>
+#include <lexer.hpp>
+
 
 
 class Driver {
@@ -19,5 +20,4 @@ class Driver {
     
     Lexer lexer;
     yy::parser bison;
-
 };
